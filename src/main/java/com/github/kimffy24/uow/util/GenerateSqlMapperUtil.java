@@ -11,9 +11,9 @@ import java.util.List;
 import java.util.Set;
 
 import com.github.kimffy24.uow.annotation.MappingTableAttribute;
-import com.github.kimffy24.uow.annotation.RBind;
 import com.github.kimffy24.uow.export.skeleton.AbstractAggregateRoot;
 import com.github.kimffy24.uow.util.KeyMapperStore.Item;
+
 
 import pro.jk.ejoker.common.system.enhance.EachUtilx;
 import pro.jk.ejoker.common.system.enhance.StringUtilx;
@@ -32,7 +32,7 @@ public class GenerateSqlMapperUtil {
 //        generateSqlMapper(SupportMapper.class, SupportAggregateRoot.class, "zod_support", "id");
 	}
 
-	private final static String CreateSqlTpl = "DROP TABLE IF EXISTS `%s`; \r\nCREATE TABLE `%s` ( \r\n%s) ENGINE=INNODB DEFAULT CHARSET=UTF8 AUTO_INCREMENT=1 COMMENT='';\r\n";
+	private final static String CreateSqlTpl = "DROP TABLE IF EXISTS `%s`; \r\nCREATE TABLE `%s` ( \r\n%s) ENGINE=INNODB DEFAULT CHARSET=UTF8 AUTO_INCREMENT=1 COMMENT='%s';\r\n";
 	private final static String FieldTpl = "`%s` %s %s COMMENT '%s',\r\n";
 	private final static String PkeyTpl = "PRIMARY KEY (%s) \r\n";
 
@@ -40,25 +40,32 @@ public class GenerateSqlMapperUtil {
 			Arrays.asList("TINYINT", "SMALLINT", "INTEGER", "BIGINT"));
 
 	/**
+	 * 从 @MappingTableAttribute 注解中读取表名 <br />
+	 * 若注解未提供表名，则使用类名小驼峰作为兜底
+	 *
+	 * @param prototype
+	 * @param mapperClassName
+	 * @param keys
+	 * @throws IOException
+	 */
+	public static void generateSqlMapper(Class<? extends AbstractAggregateRoot<?>> prototype,
+			String mapperClassName, String... keys) throws IOException {
+		generateSqlMapperF(System.out::println, System.out::println, p -> mapperClassName, prototype, null, keys);
+	}
+
+	/**
 	 * 虽然我想做复合主键的支持，但我又不想做。花大功夫满足小场景 <br />
 	 * 搁置吧，只支持单个ID
-	 * 
+	 *
 	 * @param prototype
-	 * @param tableName
+	 * @param tableName 显式指定表名，若为null或空则从 @MappingTableAttribute 注解读取
+	 * @param mapperClassName
 	 * @param keys
 	 * @throws IOException
 	 */
 	public static void generateSqlMapper(Class<? extends AbstractAggregateRoot<?>> prototype, String tableName,
-			String... keys) throws IOException {
-		generateSqlMapperF(System.out::println, System.out::println, p -> {
-			// 默认的Mapper获取方式
-			RBind annotationRB = p.getAnnotation(RBind.class);
-			if (null == annotationRB) {
-				throw new RuntimeException("This AggregateRoot Type has no @RBind info !!!");
-			}
-			Class<?> mapper = annotationRB.value();
-			return mapper.getName();
-		}, prototype, tableName, keys);
+			String mapperClassName, String... keys) throws IOException {
+		generateSqlMapperF(System.out::println, System.out::println, p -> mapperClassName, prototype, tableName, keys);
 	}
 
 	public static void generateSqlMapperF(IVoidFunction1<StringBuilder> sqlHandler,
@@ -93,19 +100,16 @@ public class GenerateSqlMapperUtil {
 
 		{
 			MappingTableAttribute annotationTA = prototype.getAnnotation(MappingTableAttribute.class);
-			
+
 			StringBuilder sql = new StringBuilder();
-			// 未传表名
-			if (!StringUtilx.isSenseful(tableName)) {
-				if(null != annotationTA && StringUtilx.isSenseful(annotationTA.tableName())) {
-					// 如果有使用 @MappingTableAttribute 注解，并提供了表名，则用它
-					tableName = annotationTA.tableName();
-				} else {
-					// 最兜底方案，使用类名小驼峰
-					tableName = KeyMapperStore.humpToLine2(prototype.getSimpleName());
-					if (tableName.charAt(0) == '_')
-						tableName = tableName.substring(1);
-				}
+			// 优先使用注解表名，显式传入的 tableName 仅作为注解缺失时的兜底
+			if(null != annotationTA && StringUtilx.isSenseful(annotationTA.tableName())) {
+				tableName = annotationTA.tableName();
+			} else if (!StringUtilx.isSenseful(tableName)) {
+				// 最兜底方案，使用类名小驼峰
+				tableName = KeyMapperStore.humpToLine2(prototype.getSimpleName());
+				if (tableName.charAt(0) == '_')
+					tableName = tableName.substring(1);
 			}
 
 			{
@@ -146,8 +150,13 @@ public class GenerateSqlMapperUtil {
 			}
 			sqlField += String.format(PkeyTpl, String.join(", ", latestKey));
 
-			sql.append(String.format(CreateSqlTpl, tableName, tableName, sqlField));
-			
+			String tableComment = "";
+			if(null != annotationTA && StringUtilx.isSenseful(annotationTA.comment())) {
+				tableComment = annotationTA.comment();
+			}
+
+			sql.append(String.format(CreateSqlTpl, tableName, tableName, sqlField, tableComment));
+
 			{
 				// 建表后追加其他语句（兼容）
 				if(null != annotationTA) {
@@ -159,13 +168,20 @@ public class GenerateSqlMapperUtil {
 						if(s.indexOf('{') + 1 == s.indexOf('}')) {
 							s = fmt(s, _tableName);
 						}
+						if(!s.matches("(?i)ALTER\\s+TABLE\\s+")) {
+							if(s.contains(_tableName))
+								s = "ALTER TABLE " + s;
+							else {
+								s = "ALTER TABLE " + _tableName + " " + s;
+							}
+						}
 						sql.append(s + ";\n");
 					});
 				}
 
 				sql.append('\n');
 			}
-			
+
 			sqlHandler.trigger(sql);
 		}
 

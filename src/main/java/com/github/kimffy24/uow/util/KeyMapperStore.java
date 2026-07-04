@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.regex.Matcher;
+
 import java.util.regex.Pattern;
 
 import com.github.kimffy24.uow.annotation.MappingColumn;
@@ -31,7 +31,12 @@ public final class KeyMapperStore {
 	
 	private final static AtomicBoolean useSnack = new AtomicBoolean(true);
     
-    private static Pattern humpPattern = Pattern.compile("[A-Z]");
+	// 第一步：分离连续大写（缩写词）与紧接的首字母大写单词
+	//   e.g. ICBCBrand → ICBC_Brand,  URLPath → URL_Path
+	private static Pattern acronymBoundary = Pattern.compile("([A-Z]+)([A-Z][a-z]+)");
+	// 第二步：分离小写单词与紧接的大写（含缩写词）
+	//   e.g. baseAccount → base_Account,  userID → user_ID
+	private static Pattern lowerUpperBoundary = Pattern.compile("([a-z]+)([A-Z])");
 	
 	public static KMStore getIntance() {
 		return instance;
@@ -46,13 +51,11 @@ public final class KeyMapperStore {
 	}
 
 	public static String humpToLine2(String str) {
-		Matcher matcher = humpPattern.matcher(str);
-		StringBuffer sb = new StringBuffer();
-		while (matcher.find()) {
-			matcher.appendReplacement(sb, "_" + matcher.group(0).toLowerCase());
-		}
-		matcher.appendTail(sb);
-		return sb.toString();
+		// 先分离缩写词与后续首字母大写单词（连续大写作为整体保留）
+		str = acronymBoundary.matcher(str).replaceAll("$1_$2");
+		// 再分离小写与后续大写（含缩写词开头的大写字母）
+		str = lowerUpperBoundary.matcher(str).replaceAll("$1_$2");
+		return str.toLowerCase();
 	}
 	
 	public final static class KMStore {

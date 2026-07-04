@@ -20,7 +20,13 @@ public @interface MappingTableAttribute {
 	 * @return
 	 */
 	public String tableName() default "";
-	
+
+	/**
+	 * 表的介绍，用于生成uow-gen-all.sql
+	 * @return
+	 */
+	public String comment() default "";
+
 	/**
 	 * 在uow-gen-all.sql中的建表语句后追加的语句
 	 * @return

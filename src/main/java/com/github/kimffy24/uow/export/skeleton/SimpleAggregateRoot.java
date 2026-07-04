@@ -11,7 +11,9 @@ public class SimpleAggregateRoot<TID> extends AbstractAggregateRoot<TID> {
 	}
 
 	private TID id;
-	
+
+	private int version;
+
 	@Override
 	protected final void setId(TID id) {
 		this.id = id;
