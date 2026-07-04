@@ -17,6 +17,7 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.cglib.proxy.Proxy;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.ApplicationListener;
@@ -26,6 +27,7 @@ import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.util.StringUtils;
 
 import com.github.kimffy24.uow.annotation.RBind;
+import com.github.kimffy24.uow.annotation.UowAggrRef;
 import com.github.kimffy24.uow.export.mapper.ILocatorMapper;
 import com.github.kimffy24.uow.service.aware.IGenRBinderProvider;
 
@@ -53,10 +55,13 @@ public class SpringUoWMapperProvider implements ApplicationContextAware, Applica
 	@Override
     public void onApplicationEvent(ApplicationReadyEvent applicationReadyEvent) {
         ApplicationContext applicationContext = applicationReadyEvent.getApplicationContext();
-        
+
+		loadBindInfoFromUowAggrRef(applicationContext);
+
         String cp;
-		if(null == genRBinderProvider || !StringUtils.hasLength(cp = genRBinderProvider.getPrefixclasspath()))
+		if(null == genRBinderProvider || !StringUtils.hasLength(cp = genRBinderProvider.getPrefixclasspath())) {
 			return;
+		}
 		
 		SqlSessionFactory sqlSessionFactory = applicationContext.getBean(SqlSessionFactory.class);
 		Configuration configuration = sqlSessionFactory.getConfiguration();
@@ -136,6 +141,75 @@ public class SpringUoWMapperProvider implements ApplicationContextAware, Applica
 	
 	private volatile Map<String, String> uowGenRBindInfo = null;
 	
+	/**
+	 * 从Spring上下文中扫描所有ILocatorMapper，通过@UowAggrRef注解直接将聚合类→mapper实例写入mapperStore
+	 */
+	private void loadBindInfoFromUowAggrRef(ApplicationContext applicationContext) {
+		Map<String, ILocatorMapper> mapperBeans = applicationContext.getBeansOfType(ILocatorMapper.class);
+		for(Map.Entry<String, ILocatorMapper> entry : mapperBeans.entrySet()) {
+			ILocatorMapper value = entry.getValue();
+
+//			Class<?> aClass = value.getClass();
+
+			Class<?> aClass = getMapperInterface(value);
+
+			UowAggrRef uowAggrRef = aClass.getAnnotation(UowAggrRef.class);
+
+			if(null != uowAggrRef) {
+				Class<?> aggrType = uowAggrRef.value();
+				mapperStore.put(aggrType, value);
+				logger.info("Bind aggregate [{}] => mapper [{}] from @UowAggrRef annotation",
+						aggrType.getName(),
+						aClass.getName());
+			}
+		}
+		logger.info("Loaded {} UoW bind info from @UowAggrRef annotation.", mapperStore.size());
+	}
+
+
+	/**
+	 * 从 MyBatis Mapper 代理中获取真实的 Mapper 接口
+	 * 兼容各种代理类型（JDK、MyBatis、CGLIB 等）
+	 */
+	public static Class<?> getMapperInterface(Object mapperProxy) {
+		if (mapperProxy == null) {
+			throw new IllegalArgumentException("Mapper proxy cannot be null");
+		}
+
+		Class<?> clazz = mapperProxy.getClass();
+
+		// 1. 先尝试从实现的接口中获取
+		Class<?>[] interfaces = clazz.getInterfaces();
+		if (interfaces.length > 0) {
+			// 找到第一个不是 JDK 内部接口的（通常是 Mapper 接口）
+			for (Class<?> intf : interfaces) {
+				String name = intf.getName();
+				// 排除 Spring/MyBatis 内部接口
+				if (!name.startsWith("org.springframework.")
+						&& !name.startsWith("org.apache.ibatis.")
+						&& !name.startsWith("com.baomidou.mybatisplus.")) {
+					return intf;
+				}
+			}
+			// 如果没有排除任何接口，返回第一个
+			return interfaces[0];
+		}
+
+		// 2. 尝试从父类获取（CGLIB 代理）
+		Class<?> superClass = clazz.getSuperclass();
+		if (superClass != null && superClass != Object.class) {
+			// 如果父类是 Mapper 接口（不应该发生），检查父类是否实现了什么接口
+			Class<?>[] superInterfaces = superClass.getInterfaces();
+			if (superInterfaces.length > 0) {
+				return superInterfaces[0];
+			}
+			return superClass;
+		}
+
+		// 3. 如果不是代理，直接返回自身
+		return clazz;
+	}
+
 	private void loadUoWGenBindInfoJson() {
 		if(null == uowGenRBindInfo) {
 			String genPath;
