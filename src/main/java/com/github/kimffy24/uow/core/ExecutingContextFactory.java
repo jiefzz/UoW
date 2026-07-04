@@ -22,6 +22,7 @@ import com.github.kimffy24.uow.repos.Repository;
 import com.github.kimffy24.uow.service.CommittingService;
 import com.github.kimffy24.uow.service.RepositoryProvider;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import pro.jk.ejoker.common.system.enhance.EachUtilx;
 import pro.jk.ejoker.common.system.enhance.MapUtilx;
 import pro.jk.ejoker.common.system.enhance.StringUtilx;
@@ -33,13 +34,10 @@ public class ExecutingContextFactory {
 	
 	private StdConverter stdConverter = StdConverter.getInstance();
 
-	private final RepositoryProvider reposProvider;
+	@Autowired
+	private RepositoryProvider reposProvider;
 	
 	private ThreadLocal<IExecutingContext> tl = new ThreadLocal<>();
-	
-	public ExecutingContextFactory(RepositoryProvider reposProvider) {
-		this.reposProvider = reposProvider;
-	}
 
 	static {
 		CommittingService.registerRoundStackAction(ec -> {

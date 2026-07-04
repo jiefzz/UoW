@@ -50,7 +50,8 @@ public class StarterAutoConfigure {
     @AutoConfigureOrder(5)
     @Bean(initMethod = "init")
     @ConditionalOnMissingBean
-    ExecutingContextFactory provideExecutingContextFactory(RepositoryProvider reposProvider){
-		return new ExecutingContextFactory(reposProvider);
+    ExecutingContextFactory provideExecutingContextFactory(BeanFactory beanFactory){
+        AutowireCapableBeanFactory listableBeanFactory = (AutowireCapableBeanFactory)beanFactory;
+        return listableBeanFactory.createBean(ExecutingContextFactory.class);
     }
 }
