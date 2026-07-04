@@ -10,11 +10,8 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import javax.annotation.PostConstruct;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import com.github.kimffy24.uow.component.StdConverter;
 import com.github.kimffy24.uow.export.IExecutingContext;
@@ -36,11 +33,14 @@ public class ExecutingContextFactory {
 	
 	private StdConverter stdConverter = StdConverter.getInstance();
 
-	@Autowired
-	private RepositoryProvider reposProvider;
+	private final RepositoryProvider reposProvider;
 	
 	private ThreadLocal<IExecutingContext> tl = new ThreadLocal<>();
 	
+	public ExecutingContextFactory(RepositoryProvider reposProvider) {
+		this.reposProvider = reposProvider;
+	}
+
 	static {
 		CommittingService.registerRoundStackAction(ec -> {
 			((UoWContext )ec).markRound();
@@ -50,8 +50,7 @@ public class ExecutingContextFactory {
 		
 	}
 	
-	@PostConstruct
-	private void init() {
+	void init() {
 		// 注册全局唯一实例。
 		// 这个非常重要，供用户侧直接静态方法获取UoW上下文对象
 		ContextLocatorBinder.setOnce(this);
@@ -224,7 +223,7 @@ public class ExecutingContextFactory {
 							"AggregateRoot is changed before commit!!! [type: {}, id: {}, version: {}]",
 							aggr.getClass().getSimpleName(),
 							aggr.getId(),
-							aggr.getVersion()
+							aggr.currentVersionStrValue()
 							));
 				Repository repository = reposProvider.getRepos(aggr.getClass());
 				ILocatorMapper provideLocatorMapper = repository.provideLocatorMapper();
@@ -252,9 +251,16 @@ public class ExecutingContextFactory {
 					}
 					if(!convert.isEmpty()) {
 						// 如果没有变化，则不参与本次更新
-						convert.put("version", aggr.getVersion()+1);
+//						convert.put("version", aggr.getVersion()+1);
+//						uStore.put(
+//								IdVersionTuple.of(aggr.getId(), aggr.getVersion(), convert),
+//								provideLocatorMapper);
+
+						aggr.versionIncrement();
+						Object v = aggr.currentVersionValue();
+						convert.put(aggr.getVersionFieldName(), v);
 						uStore.put(
-								IdVersionTuple.of(aggr.getId(), aggr.getVersion(), convert),
+								IdVersionTuple.of(aggr.getId(), String.valueOf(v), convert),
 								provideLocatorMapper);
 					}
 				}
@@ -296,17 +302,17 @@ public class ExecutingContextFactory {
 	private final static class IdVersionTuple {
 		public final Object id;
 		
-		public final int version;
+		public final String version;
 		
 		public final Map<String, Object> update;
 
-		public IdVersionTuple(Object id, int version, Map<String, Object> update) {
+		public IdVersionTuple(Object id, String version, Map<String, Object> update) {
 			this.id = id;
 			this.version = version;
 			this.update = update;
 		}
 		
-		public static IdVersionTuple of(Object id, int version, Map<String, Object> update) {
+		public static IdVersionTuple of(Object id, String version, Map<String, Object> update) {
 			return new IdVersionTuple(id, version, update);
 		}
 
@@ -315,7 +321,7 @@ public class ExecutingContextFactory {
 			final int prime = 31;
 			int result = 1;
 			result = prime * result + ((id == null) ? 0 : id.hashCode());
-			result = prime * result + version;
+			result = prime * result + version.hashCode();
 			return result;
 		}
 

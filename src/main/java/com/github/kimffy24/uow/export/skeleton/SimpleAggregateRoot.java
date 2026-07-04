@@ -26,5 +26,9 @@ public class SimpleAggregateRoot<TID> extends AbstractAggregateRoot<TID> {
 	public final String getIdFieldName() {
 		return "id";
 	}
-	
+
+	@Override
+	public String getVersionFieldName() {
+		return "version";
+	}
 }

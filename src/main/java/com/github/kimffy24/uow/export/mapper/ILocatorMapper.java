@@ -13,7 +13,7 @@ public interface ILocatorMapper {
 	
 	public int updateById(@Param(value = "id") Object id, @Param(value = "data") Map<String, Object> u);
 	
-	public int updateByIdAndVersion(@Param(value = "id") Object id, @Param(value = "version") int version, @Param(value = "data") Map<String, Object> u);
+	public int updateByIdAndVersion(@Param(value = "id") Object id, @Param(value = "version") String version, @Param(value = "data") Map<String, Object> u);
 	
 	public int createNew(Map<String, Object> n);
 	

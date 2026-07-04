@@ -15,5 +15,12 @@ public interface AggregateRootLifeCycleAware {
 	 * 在进入UoWCommit过程发生后会执行一次此方法，且一定会发生在diff过程之前
 	 */
 	public void preCommit();
-	
+
+	public String getVersionFieldName();
+
+	public void versionIncrement();
+
+	public Object currentVersionValue();
+
+	public String currentVersionStrValue();
 }
