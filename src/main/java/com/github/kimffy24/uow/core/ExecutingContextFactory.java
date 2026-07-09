@@ -209,7 +209,11 @@ public class ExecutingContextFactory {
 				}
 				
 				Map<String, Object> convert = stdConverter.convert(newAggr);
-				convert.put("version", 1);
+
+				newAggr.versionIncrement();
+				Object v = newAggr.currentVersionValue();
+				convert.put(newAggr.getVersionFieldName(), v);
+
 				cStore.put(convert, provideLocatorMapper);
 				idAdopt = id -> AggregateActionBinder.setGeneratedId(newAggr, id);
 			}

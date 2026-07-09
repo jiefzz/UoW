@@ -8,7 +8,8 @@ import org.springframework.core.annotation.Order;
 import java.lang.annotation.*;
 
 /**
- * @deprecated 改为由uow-codegen承担这个职责
+ * 这个注解是为 {@link com.github.kimffy24.uow.export.mapper.ILocatorMapper} 的生成的映射类使用的，目的是为上下文中存入
+ * Mapper类与聚合的关系
  * @author kimffy
  *
  */
