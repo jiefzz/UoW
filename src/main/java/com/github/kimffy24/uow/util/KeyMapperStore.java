@@ -164,6 +164,9 @@ public final class KeyMapperStore {
 		}
 	}
 
+	/**
+	 * 解析aggr域sql字段的关联记录项，并记录下jdbc类型
+	 */
     public final static class Item {
     	public String key;
     	public String jdbcType;

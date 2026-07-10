@@ -41,43 +41,6 @@ public abstract class AbstractUoWService {
 	}
 
 	/**
-	 * 按条件在持久层中查找对象，条件通常是字段与值对应，condition最后会流到SQL查询的的where条件上，并检索出对应的对象。<br />
-	 * * 严格要求匹配对象仅存在1个，否则抛出异常
-	 * @param <T>
-	 * @param conditions
-	 * @param prototype
-	 * @return
-	 */
-	protected final <T extends AbstractAggregateRoot<?>> T fetchOneFromContext(Map<String, Object> conditions, Class<T> prototype) {
-		List<T> fetchMatcheds = executingContextFactory.getExecutingContext().fetchMatcheds(conditions, prototype);
-		if(null == fetchMatcheds || fetchMatcheds.isEmpty())
-			throw new RuntimeException(StringUtilx.fmt(
-					"Cannot find any Aggregate with conditions!!! [type: {}, contitions: {}]",
-					prototype.getName(),
-					conditions
-					));
-		if(1 != fetchMatcheds.size())
-			throw new RuntimeException(StringUtilx.fmt(
-					"Found more than one Aggregate with conditions!!! [type: {}, contitions: {}]",
-					prototype.getName(),
-					conditions
-					));
-		
-		return fetchMatcheds.get(0);
-	}
-
-	/**
-	 * 按条件在持久层中查找对象，条件通常是字段与值对应，condition最后会流到SQL查询的的where条件上，并检索出对应的对象
-	 * @param <T>
-	 * @param conditions
-	 * @param prototype
-	 * @return
-	 */
-	protected final <T extends AbstractAggregateRoot<?>> List<T> fetchMatchedFromContext(Map<String, Object> conditions, Class<T> prototype) {
-		return executingContextFactory.getExecutingContext().fetchMatcheds(conditions, prototype);
-	}
-
-	/**
 	 * 新增对象到持久层，每次新增仅仅能添加1个对象，且不能影响其它对象
 	 * @param aggr
 	 */

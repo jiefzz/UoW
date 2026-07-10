@@ -17,12 +17,6 @@ public interface IExecutingContext {
 	public <T extends AbstractAggregateRoot<?>> T fetch(Class<T> prototype, Object id);
 
 	/**
-	 * 少用为好，应该多通过IdLocator获得其id，然后再调用fetch方法获得聚合
-	 */
-	@Deprecated
-	public <T extends AbstractAggregateRoot<?>> List<T> fetchMatcheds(Map<String, Object> conditions, Class<T> prototype);
-	
-	/**
 	 * 把当前的UoW业务对象加入到提交上下文中，commit执行时会提交到数据库的了。<br />
 	 * 
 	 * @param <T>

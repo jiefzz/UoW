@@ -7,8 +7,6 @@ import org.apache.ibatis.annotations.Param;
 
 public interface ILocatorMapper {
 
-	public List<Map<String, Object>> locateId(@Param(value = "data") Map<String, Object> match);
-	
 	public Map<String, Object> fetchById(@Param(value = "id") Object id);
 	
 	public int updateById(@Param(value = "id") Object id, @Param(value = "data") Map<String, Object> u);

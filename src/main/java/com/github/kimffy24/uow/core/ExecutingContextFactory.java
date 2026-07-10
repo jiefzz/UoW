@@ -95,19 +95,6 @@ public class ExecutingContextFactory {
 		}
 
 		@Override
-		public <T extends AbstractAggregateRoot<?>> List<T> fetchMatcheds(Map<String, Object> conditions,
-				Class<T> prototype) {
-			Repository<T> repository = reposProvider.getRepos(prototype);
-			List<T> fetchMatched = repository.fetchMatched(conditions);
-			EachUtilx.loop(fetchMatched, f -> {
-				if(f instanceof AggregateRootLifeCycleAware) {
-					((AggregateRootLifeCycleAware) f).postCreation();
-				}
-			});
-			return fetchMatched;
-		}
-
-		@Override
 		public <T extends AbstractAggregateRoot<?>> T add(T aggr) {
 			logger.warn("This context is not a UoWContext! This add() will do nothing ...");
 			// do nothing
@@ -161,25 +148,6 @@ public class ExecutingContextFactory {
 		public <T extends AbstractAggregateRoot<?>> T fetch(Class<T> prototype, Object id) {
 			return (T )MapUtilx.getOrAdd(trackingAggregates, getTypeIdKey(prototype, id), () -> super.fetch(prototype, id));
 		}
-		
-		@SuppressWarnings("unchecked")
-		@Override
-		public <T extends AbstractAggregateRoot<?>> List<T> fetchMatcheds(
-				Map<String, Object> conditions,
-				Class<T> prototype) {
-			List<T> fetchMatched = super.fetchMatcheds(conditions, prototype);
-			List<T> newArrayList = new ArrayList<>();
-			EachUtilx.forEach(fetchMatched, a -> {
-				T previous = (T )trackingAggregates
-						.putIfAbsent(getTypeIdKey(a.getClass(), a.getId()), a);
-				if(null != previous) {
-					newArrayList.add(previous);
-				} else {
-					newArrayList.add(a);
-				}
-			});
-			return newArrayList;
-		}
 
 		@Override
 		public <T extends AbstractAggregateRoot<?>> T add(T aggr) {
@@ -227,8 +195,6 @@ public class ExecutingContextFactory {
 							aggr.getId(),
 							aggr.currentVersionStrValue()
 							));
-				Repository repository = reposProvider.getRepos(aggr.getClass());
-				ILocatorMapper provideLocatorMapper = repository.provideLocatorMapper();
 				{
 					//在反序列化之前调用用户的前置方法
 					if(aggr instanceof AggregateRootLifeCycleAware) {
@@ -237,6 +203,10 @@ public class ExecutingContextFactory {
 				}
 
 				Map<String, Object> convert = stdConverter.convert(aggr);
+
+				Repository repository = reposProvider.getRepos(aggr.getClass());
+				ILocatorMapper provideLocatorMapper = repository.provideLocatorMapper();
+
 				Map aggrOriginalDict = repository.getAggrOriginalDict(aggr);
 				if(null == aggrOriginalDict) {
 					// 逻辑上不会出现这种情况

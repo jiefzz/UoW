@@ -103,20 +103,6 @@ public class Repository <T extends AbstractAggregateRoot<?>> {
 		return revertToAggr(reMap);
 	}
 
-	/**
-	 * 按照match中的key=value多个条件，捞出符合条件的实例对象<br />
-	 * @deprecated 请尽量通过id捞对象数据
-	 * @param match
-	 * @return
-	 */
-	public List<T> fetchMatched(Map<String, Object> match) {
-		ILocatorMapper provideLocatorMapper = springUoWMapperBinder.getAggrMapper(aggrRootType);
-		List<Map<String, Object>> mi = provideLocatorMapper.locateId(match);
-		if(null == mi || mi.isEmpty())
-			return new ArrayList<>();
-		// TODO 暂不支持多主键
-		return mi.stream().map(i -> Repository.this.fetch(i.get(keys.iterator().next()))).collect(Collectors.toList());
-	}
 	
 //	public void add(T aggr) {
 //		Map<String, Object> convert = stdConverter.convert(aggr);
